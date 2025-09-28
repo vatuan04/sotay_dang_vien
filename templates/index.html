@@ -1,0 +1,41 @@
+{% extends 'base.html' %} {% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4>Ghi chú</h4>
+  <a class="btn btn-success" href="{{ url_for('new_note') }}"
+    >Tạo ghi chú mới</a
+  >
+</div>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>Tiêu đề</th>
+      <th>Người tạo</th>
+      <th>Ngày</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for note in notes %}
+    <tr>
+      <td>{{ note.title }}</td>
+      <td>{{ note.member_id }}</td>
+      <td>{{ note.created_at }}</td>
+      <td>
+        <form
+          method="post"
+          action="{{ url_for('delete_note', nid=note.id) }}"
+          style="display: inline"
+        >
+          <button class="btn btn-sm btn-danger">Xóa</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td colspan="4">Chưa có ghi chú nào.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
