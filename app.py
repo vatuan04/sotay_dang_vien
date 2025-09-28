@@ -93,11 +93,14 @@ def create_admin():
     print('admin created')
 
 with app.app_context():
-    try:
-        db.create_all()
-        print("Database tables created (if not exist).")
-    except Exception as e:
-        print("Error creating database tables:", e)
+    db.create_all()
+    # auto tạo admin nếu chưa có
+    if not User.query.filter_by(username="admin").first():
+        pw = bcrypt.generate_password_hash("admin123").decode("utf-8")
+        u = User(username="admin", password_hash=pw, role="admin")
+        db.session.add(u)
+        db.session.commit()
+        print("✅ Admin account created: admin / admin123")
 
 if __name__ == '__main__':
     with app.app_context():
