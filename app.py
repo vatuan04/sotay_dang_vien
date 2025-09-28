@@ -92,6 +92,13 @@ def create_admin():
     db.session.add(u); db.session.commit()
     print('admin created')
 
+with app.app_context():
+    try:
+        db.create_all()
+        print("Database tables created (if not exist).")
+    except Exception as e:
+        print("Error creating database tables:", e)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
