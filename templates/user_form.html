@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="col-md-6">
+  {% if action == 'create' %}
+    <h4>Tạo tài khoản mới</h4>
+  {% else %}
+    <h4>Chỉnh sửa tài khoản: {{ user.username }}</h4>
+  {% endif %}
+
+  <form method="post">
+    {% if action == 'create' %}
+    <div class="mb-3">
+      <label class="form-label">Tài khoản</label>
+      <input class="form-control" name="username" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Mật khẩu</label>
+      <input class="form-control" name="password" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Role</label>
+      <select class="form-select" name="role">
+        <option value="member">member</option>
+        <option value="admin">admin</option>
+      </select>
+    </div>
+    <button class="btn btn-primary">Tạo</button>
+    {% else %}
+    <div class="mb-3">
+      <label class="form-label">Tài khoản</label>
+      <input class="form-control" value="{{ user.username }}" disabled>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Reset mật khẩu (để trống nếu không đổi)</label>
+      <input class="form-control" name="password" placeholder="Mật khẩu mới">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Role</label>
+      <select class="form-select" name="role">
+        <option value="member" {% if user.role=='member' %}selected{% endif %}>member</option>
+        <option value="admin" {% if user.role=='admin' %}selected{% endif %}>admin</option>
+      </select>
+    </div>
+    <button class="btn btn-primary">Lưu thay đổi</button>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

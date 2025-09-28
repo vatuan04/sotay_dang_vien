@@ -16,6 +16,13 @@
         <div class="d-flex">
           {% if current_user.is_authenticated %}
           <span class="me-2">{{ current_user.username }}</span>
+          {% if current_user.role == 'admin' %}
+          <a
+            class="btn btn-outline-secondary btn-sm me-2"
+            href="{{ url_for('admin_users') }}"
+            >Admin</a
+          >
+          {% endif %}
           <a
             class="btn btn-outline-secondary btn-sm"
             href="{{ url_for('logout') }}"

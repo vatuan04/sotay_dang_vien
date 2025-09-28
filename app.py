@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 import os
+from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'change_me_in_prod')
@@ -66,7 +67,7 @@ def new_note():
         db.session.add(note); db.session.commit()
         flash('Đã lưu ghi chú', 'success')
         return redirect(url_for('index'))
-    return render_template('note_form.html')
+    return render_template('note_form.html', note=None, action='create')
 
 @app.route('/note/<int:nid>/delete', methods=['POST'])
 @login_required
@@ -91,6 +92,114 @@ def create_admin():
     u = User(username=username, password_hash=pw, role='admin')
     db.session.add(u); db.session.commit()
     print('admin created')
+
+
+# --- helper: kiểm tra admin ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash('Bạn không có quyền truy cập trang này', 'danger')
+            return redirect(url_for('index' if current_user.is_authenticated else 'login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ---------- Admin: danh sách users ----------
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.id.asc()).all()
+    return render_template('users_list.html', users=users)
+
+# ---------- Admin: tạo user mới ----------
+@app.route('/admin/users/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_create_user():
+    if request.method == 'POST':
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
+        role = request.form.get('role', 'member')
+        if not username or not password:
+            flash('Vui lòng điền đủ tài khoản và mật khẩu', 'danger')
+            return redirect(url_for('admin_create_user'))
+        if User.query.filter_by(username=username).first():
+            flash('Tài khoản đã tồn tại', 'danger')
+            return redirect(url_for('admin_create_user'))
+        pw_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+        u = User(username=username, password_hash=pw_hash, role=role)
+        db.session.add(u)
+        db.session.commit()
+        flash('Tạo tài khoản thành công', 'success')
+        return redirect(url_for('admin_users'))
+    return render_template('user_form.html', action='create', user=None)
+
+# ---------- Admin: sửa user (chỉ role và reset mật khẩu) ----------
+@app.route('/admin/users/<int:uid>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_user(uid):
+    user = User.query.get_or_404(uid)
+    if request.method == 'POST':
+        # chỉ cho sửa role và reset password
+        role = request.form.get('role', 'member')
+        new_password = request.form.get('password')
+        user.role = role
+        if new_password:
+            user.password_hash = bcrypt.generate_password_hash(new_password).decode('utf-8')
+        db.session.commit()
+        flash('Cập nhật tài khoản thành công', 'success')
+        return redirect(url_for('admin_users'))
+    return render_template('user_form.html', action='edit', user=user)
+
+# ---------- Admin: xóa user ----------
+@app.route('/admin/users/<int:uid>/delete', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_user(uid):
+    user = User.query.get_or_404(uid)
+    # tránh xóa admin hiện tại bằng nhầm lẫn
+    if user.id == current_user.id:
+        flash('Không thể xóa chính bạn', 'danger')
+        return redirect(url_for('admin_users'))
+    db.session.delete(user); db.session.commit()
+    flash('Đã xóa tài khoản', 'success')
+    return redirect(url_for('admin_users'))
+
+
+# Xem chi tiết 1 ghi chú
+@app.route('/note/<int:nid>')
+@login_required
+def view_note(nid):
+    note = Note.query.get_or_404(nid)
+    # quyền: admin hoặc chính chủ mới xem (nếu muốn khác hãy sửa)
+    if current_user.role != 'admin' and note.member_id != current_user.id:
+        flash('Không có quyền xem ghi chú này', 'danger')
+        return redirect(url_for('index'))
+    return render_template('note_view.html', note=note)
+
+# Chỉnh sửa 1 ghi chú
+@app.route('/note/<int:nid>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_note(nid):
+    note = Note.query.get_or_404(nid)
+    # chỉ admin hoặc chủ sở hữu được chỉnh sửa
+    if current_user.role != 'admin' and note.member_id != current_user.id:
+        flash('Không có quyền chỉnh sửa ghi chú này', 'danger')
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        note.title = title
+        note.content = content
+        db.session.commit()
+        flash('Cập nhật ghi chú thành công', 'success')
+        return redirect(url_for('view_note', nid=note.id))
+
+    # GET -> hiện form với dữ liệu hiện tại
+    return render_template('note_form.html', note=note, action='edit')
 
 with app.app_context():
     db.create_all()

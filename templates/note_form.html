@@ -1,14 +1,16 @@
-{% extends 'base.html' %} {% block content %}
-<h4>Tạo / Chỉnh sửa ghi chú</h4>
+{% extends 'base.html' %}
+{% block content %}
+<h4>{% if action == 'edit' %}Chỉnh sửa ghi chú{% else %}Tạo ghi chú mới{% endif %}</h4>
 <form method="post">
   <div class="mb-3">
     <label class="form-label">Tiêu đề</label>
-    <input class="form-control" name="title" />
+    <input class="form-control" name="title" value="{{ note.title if note else '' }}">
   </div>
   <div class="mb-3">
     <label class="form-label">Nội dung</label>
-    <textarea class="form-control" name="content" rows="6"></textarea>
+    <textarea class="form-control" name="content" rows="8">{{ note.content if note else '' }}</textarea>
   </div>
-  <button class="btn btn-primary">Lưu</button>
+  <button class="btn btn-primary">{% if action == 'edit' %}Lưu thay đổi{% else %}Lưu{% endif %}</button>
+  <a class="btn btn-secondary ms-2" href="{{ url_for('index') }}">Hủy</a>
 </form>
 {% endblock %}
