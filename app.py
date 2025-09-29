@@ -8,8 +8,9 @@ from datetime import datetime, timezone, timedelta
 from flask_migrate import Migrate   
 
 app = Flask(__name__)
-DATABASE_URL = os.environ.get("DATABASE_URL")  # lấy tự động từ Render
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+# Chỉ dùng PostgreSQL từ biến môi trường DATABASE_URL
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
