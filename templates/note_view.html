@@ -3,7 +3,8 @@
 <div class="mb-3 d-flex justify-content-between align-items-center">
   <div>
     <h3>{{ note.title or '(Không tiêu đề)' }}</h3>
-    <div class="text-muted">Người tạo: {{ note.member_id }} • {{ note.created_at }}</div>
+    <div class="text-muted">Người tạo: {{ note.author_username}} • {{ note.created_at.strftime('%H:%M:%S %d/%m/%Y') }}</div>
+      <!-- <div class="text-muted">• {{ note.created_at }}</div> -->
   </div>
   <div>
     {% if current_user.role == 'admin' or note.member_id == current_user.id %}

@@ -4,13 +4,16 @@ from flask_bcrypt import Bcrypt
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 import os
 from functools import wraps
+from datetime import datetime, timezone, timedelta
+from flask_migrate import Migrate   
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'change_me_in_prod')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///sotay.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/sotay.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -23,10 +26,13 @@ class User(db.Model, UserMixin):
 
 class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    member_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # Lưu username người tạo; có thể đặt FK vào user.username
+    author_username = db.Column(db.String(80), db.ForeignKey('user.username'), nullable=False)
     title = db.Column(db.String(200))
     content = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    # Lưu thời gian theo timezone UTC+7 lúc tạo
+    created_at = db.Column(db.DateTime(timezone=True),
+                           default=lambda: datetime.now(timezone(timedelta(hours=7))))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -38,8 +44,9 @@ def index():
     if current_user.role == 'admin':
         notes = Note.query.order_by(Note.created_at.desc()).all()
     else:
-        notes = Note.query.filter_by(member_id=current_user.id).order_by(Note.created_at.desc()).all()
+        notes = Note.query.filter_by(author_username=current_user.username).order_by(Note.created_at.desc()).all()
     return render_template('index.html', notes=notes)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -63,20 +70,24 @@ def new_note():
     if request.method == 'POST':
         t = request.form.get('title')
         c = request.form.get('content')
-        note = Note(member_id=current_user.id, title=t, content=c)
-        db.session.add(note); db.session.commit()
+        # dùng username thay vì member_id
+        note = Note(author_username=current_user.username, title=t, content=c)
+        db.session.add(note)
+        db.session.commit()
         flash('Đã lưu ghi chú', 'success')
         return redirect(url_for('index'))
-    return render_template('note_form.html', note=None, action='create')
+    return render_template('note_form.html')
 
 @app.route('/note/<int:nid>/delete', methods=['POST'])
 @login_required
 def delete_note(nid):
     note = Note.query.get_or_404(nid)
-    if current_user.role != 'admin' and note.member_id != current_user.id:
+    # kiểm tra quyền: admin hoặc chính chủ (so sánh username)
+    if current_user.role != 'admin' and note.author_username != current_user.username:
         flash('Không có quyền', 'danger')
         return redirect(url_for('index'))
-    db.session.delete(note); db.session.commit()
+    db.session.delete(note)
+    db.session.commit()
     flash('Đã xóa', 'success')
     return redirect(url_for('index'))
 
@@ -212,6 +223,4 @@ with app.app_context():
         print("✅ Admin account created: admin / admin123")
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
